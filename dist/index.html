@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="按2026年5月和6月极兔账单规则计算快递总成本与月结补款。" />
+    <meta name="theme-color" content="#13263d" />
+    <title>极兔运费计算器</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">JT</div>
+        <div>
+          <p class="eyebrow">卓顺五金工具</p>
+          <h1>极兔运费计算器</h1>
+        </div>
+        <div class="verified-chip">
+          <span class="verified-dot" aria-hidden="true"></span>
+          5–6月账单已核对
+        </div>
+      </header>
+
+      <section class="workspace" aria-label="运费计算">
+        <form class="input-panel" id="shipping-form">
+          <div class="panel-heading">
+            <span class="step-number">01</span>
+            <div>
+              <h2>填写快件信息</h2>
+              <p>重量不足1公斤按1公斤向上取整。</p>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="province">收件省份</label>
+            <div class="select-wrap">
+              <select id="province" name="province" required>
+                <optgroup label="可直接下单">
+                  <option value="河北省" selected>河北省</option>
+                  <option value="北京">北京</option>
+                  <option value="天津">天津</option>
+                  <option value="山西省">山西省</option>
+                  <option value="内蒙古自治区">内蒙古自治区</option>
+                  <option value="黑龙江省">黑龙江省</option>
+                  <option value="上海">上海</option>
+                  <option value="江苏省">江苏省</option>
+                  <option value="浙江省">浙江省</option>
+                  <option value="安徽省">安徽省</option>
+                  <option value="福建省">福建省</option>
+                  <option value="江西省">江西省</option>
+                  <option value="山东省">山东省</option>
+                  <option value="河南省">河南省</option>
+                  <option value="湖北省">湖北省</option>
+                  <option value="湖南省">湖南省</option>
+                  <option value="广东省">广东省</option>
+                  <option value="广西壮族自治区">广西壮族自治区</option>
+                  <option value="重庆">重庆</option>
+                  <option value="四川省">四川省</option>
+                  <option value="贵州省">贵州省</option>
+                  <option value="云南省">云南省</option>
+                  <option value="陕西省">陕西省</option>
+                  <option value="甘肃省">甘肃省</option>
+                  <option value="宁夏回族自治区">宁夏回族自治区</option>
+                </optgroup>
+                <optgroup label="需联系确认地址">
+                  <option value="辽宁省">辽宁省</option>
+                  <option value="吉林省">吉林省</option>
+                </optgroup>
+                <optgroup label="暂不发货">
+                  <option value="青海省">青海省</option>
+                  <option value="海南省">海南省</option>
+                  <option value="新疆维吾尔自治区">新疆维吾尔自治区</option>
+                  <option value="西藏自治区">西藏自治区</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="weight">实际重量</label>
+            <div class="weight-input-wrap">
+              <input id="weight" name="weight" type="number" inputmode="decimal" min="0.01" step="0.01" value="3" required aria-describedby="weight-hint" />
+              <span>kg</span>
+            </div>
+            <p class="field-hint" id="weight-hint">例如输入 2.32kg，极兔按 3kg 计费。</p>
+          </div>
+
+          <button class="calculate-button" type="submit">
+            计算运费
+            <span aria-hidden="true">→</span>
+          </button>
+
+          <div class="policy-card" id="policy-card">
+            <div class="policy-icon" aria-hidden="true">✓</div>
+            <div>
+              <strong id="policy-title">可直接下单</strong>
+              <p id="policy-text">该省份按已确认账单规则计费。</p>
+            </div>
+          </div>
+        </form>
+
+        <section class="result-panel" aria-live="polite" aria-atomic="true">
+          <div id="result-content">
+            <div class="result-heading">
+              <div>
+                <p class="eyebrow">计算结果</p>
+                <h2 id="route-title">发往河北省</h2>
+              </div>
+              <span class="weight-badge" id="billable-weight">计费 3kg</span>
+            </div>
+
+            <div class="primary-result">
+              <p>本票实际总成本</p>
+              <div class="amount" id="total-cost"><span>¥</span>5.05</div>
+              <p class="amount-note">这是极兔本票完整运费</p>
+            </div>
+
+            <div class="settlement-card">
+              <div>
+                <p>月结账单还需补交</p>
+                <span>已冲减每票3.50元面单金额</span>
+              </div>
+              <strong id="monthly-due">¥1.55</strong>
+            </div>
+
+            <div class="breakdown">
+              <div class="breakdown-header">
+                <h3>费用明细</h3>
+                <span id="pricing-tier">3kg档</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>基础运费</dt>
+                  <dd id="base-fee">¥5.00</dd>
+                </div>
+                <div>
+                  <dt>北京／上海加收</dt>
+                  <dd id="city-fee">¥0.00</dd>
+                </div>
+                <div>
+                  <dt>偏远地区加收</dt>
+                  <dd id="remote-fee">¥0.00</dd>
+                </div>
+                <div>
+                  <dt>运输加收</dt>
+                  <dd id="transport-fee">¥0.05</dd>
+                </div>
+                <div class="breakdown-total">
+                  <dt>总运费</dt>
+                  <dd id="breakdown-total">¥5.05</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="calculation-note" id="calculation-note">
+              <span aria-hidden="true">i</span>
+              <p>基础运费 ¥5.00 ＋ 运输加收 ¥0.05</p>
+            </div>
+          </div>
+
+          <div class="unavailable-state" id="unavailable-state" hidden>
+            <div class="unavailable-icon" aria-hidden="true">×</div>
+            <p class="eyebrow">暂不发货</p>
+            <h2 id="unavailable-title">该省份暂不提供报价</h2>
+            <p>青海、海南、新疆、西藏目前不纳入计算。如需发货，请单独联系网点确认。</p>
+          </div>
+        </section>
+      </section>
+
+      <footer>
+        <span>规则版本：2026年5–6月极兔账单</span>
+        <span>共核对5,452票，逐票计算零差异</span>
+      </footer>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
