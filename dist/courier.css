@@ -1,0 +1,74 @@
+.courier-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0 0 25px;
+  padding: 0;
+  border: 0;
+}
+
+.courier-tabs legend {
+  margin-bottom: 9px;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.courier-tabs label {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.courier-tabs input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.courier-tabs label > span {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 66px;
+  padding: 10px 14px;
+  border: 1px solid #cfd7df;
+  border-radius: 13px;
+  background: white;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.courier-tabs strong {
+  font-size: 1rem;
+}
+
+.courier-tabs small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.courier-tabs input:checked + span {
+  border-color: var(--orange);
+  background: rgba(238, 107, 53, 0.07);
+  box-shadow: 0 0 0 3px rgba(238, 107, 53, 0.11);
+}
+
+.courier-tabs input:focus-visible + span {
+  outline: 3px solid rgba(238, 107, 53, 0.3);
+  outline-offset: 2px;
+}
+
+.breakdown .not-included {
+  color: #ffbf9f;
+  font-family: inherit;
+  font-weight: 750;
+}
+
+@media (max-width: 430px) {
+  .courier-tabs label > span {
+    min-height: 62px;
+    padding-inline: 12px;
+  }
+}
