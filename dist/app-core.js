@@ -8,8 +8,17 @@
   const JT_SMALL_REMOTE_PROVINCES = new Set([...JT_HIGH_RATE_PROVINCES, "内蒙古自治区"]);
   const JT_CITY_SURCHARGE_PROVINCES = new Set(["北京", "上海"]);
   const JT_MANUAL_PROVINCES = new Set(["辽宁省", "吉林省"]);
-  const JT_UNAVAILABLE_PROVINCES = new Set([
-    "青海省", "海南省", "新疆维吾尔自治区", "西藏自治区",
+  const JT_DIRECT_REMOTE_RATES = new Map([
+    ["青海省", { first: 9, lightExtra: 6, heavyRate: 4.5 }],
+    ["海南省", { first: 12, lightExtra: 6, heavyRate: 5 }],
+    ["新疆维吾尔自治区", { first: 18, lightExtra: 9, heavyRate: 6.5 }],
+    ["西藏自治区", { first: 18, lightExtra: 9, heavyRate: 6.5 }],
+  ]);
+  const JT_TRANSFER_ROUTES = new Map([
+    ["青海省", { via: "陕西咸阳", rateProvince: "陕西省" }],
+    ["新疆维吾尔自治区", { via: "陕西咸阳", rateProvince: "陕西省" }],
+    ["西藏自治区", { via: "四川", rateProvince: "四川省" }],
+    ["香港特别行政区", { via: "广东珠海", rateProvince: "广东省", transferOnly: true }],
   ]);
 
   const SF_RATES = new Map([
@@ -38,14 +47,72 @@
     return { weight };
   }
 
+  function calculateJTDirectQuote(province, billableWeight) {
+    const rate = JT_DIRECT_REMOTE_RATES.get(province);
+    if (!rate) return null;
+    let totalCost;
+    let formulaText;
+    if (billableWeight <= 1) {
+      totalCost = rate.first;
+      formulaText = `首1kg ${formatMoney(rate.first)}`;
+    } else if (billableWeight <= 10) {
+      totalCost = rate.first + (billableWeight - 1) * rate.lightExtra;
+      formulaText = `${formatMoney(rate.first)} ＋ ${billableWeight - 1}kg × ${formatMoney(rate.lightExtra)}`;
+    } else {
+      totalCost = billableWeight * rate.heavyRate + 4;
+      formulaText = `${billableWeight}kg × ${formatMoney(rate.heavyRate)} ＋ 面单 ${formatMoney(4)}`;
+    }
+    return {
+      province,
+      billableWeight,
+      totalCost: roundMoney(totalCost),
+      formulaText,
+      pricingTier: billableWeight <= 10 ? "极兔报价单 · 1–10kg档" : "极兔报价单 · 10kg以上档",
+    };
+  }
+
   function calculateJTShipping(province, actualWeight) {
     const input = validateInput(province, actualWeight);
     if (input.error) return input;
-    if (JT_UNAVAILABLE_PROVINCES.has(province)) {
-      return { carrier: "jt", carrierName: "极兔", unavailable: true, province };
-    }
 
     const billableWeight = Math.ceil(input.weight);
+    const transferRoute = JT_TRANSFER_ROUTES.get(province);
+    const directQuote = calculateJTDirectQuote(province, billableWeight);
+
+    if (transferRoute) {
+      const transferResult = calculateJTShipping(transferRoute.rateProvince, input.weight);
+      return {
+        ...transferResult,
+        province,
+        destinationProvince: province,
+        transfer: true,
+        transferOnly: Boolean(transferRoute.transferOnly),
+        transferRoute,
+        directQuote,
+        pricingTier: `${transferRoute.via}中转 · ${transferResult.pricingTier}`,
+      };
+    }
+
+    if (directQuote) {
+      return {
+        carrier: "jt",
+        carrierName: "极兔",
+        province,
+        actualWeight: input.weight,
+        billableWeight,
+        baseFee: directQuote.totalCost,
+        cityFee: 0,
+        remoteFee: 0,
+        transportFee: 0,
+        totalCost: directQuote.totalCost,
+        labelCredit: 0,
+        monthlyDue: directQuote.totalCost,
+        pricingTier: directQuote.pricingTier,
+        directOnly: true,
+        quoteOnly: true,
+        directQuote,
+      };
+    }
     let baseFee;
     let pricingTier;
 
@@ -179,8 +246,8 @@
       icon.textContent = "×";
       policyTitle.textContent = "暂无报价";
       policyText.textContent = result.carrier === "sf"
-        ? "顺丰报价表没有西藏价格，请联系确认。"
-        : "极兔当前不向该省份提供自动报价。";
+        ? "顺丰报价表没有该地区价格，请联系确认。"
+        : "该地区暂时没有可用报价。";
       return;
     }
 
@@ -189,6 +256,27 @@
       icon.textContent = "!";
       policyTitle.textContent = "报价表有价格，暂无账单样本";
       policyText.textContent = "吉林、宁夏、新疆在本批250票中没有订单，发货前建议确认。";
+      return;
+    }
+
+    if (result.carrier === "jt" && result.transfer) {
+      policyCard.classList.add("manual");
+      icon.textContent = "↔";
+      if (result.transferOnly) {
+        policyTitle.textContent = `仅走${result.transferRoute.via}中转`;
+        policyText.textContent = `目的地按${result.transferRoute.rateProvince}账单价格计算，没有极兔直发报价。`;
+      } else {
+        policyTitle.textContent = `走${result.transferRoute.via}中转`;
+        policyText.textContent = `主价格按${result.transferRoute.rateProvince}计算，下方同时显示极兔直发报价单。`;
+      }
+      return;
+    }
+
+    if (result.carrier === "jt" && result.directOnly) {
+      policyCard.classList.add("manual");
+      icon.textContent = "直";
+      policyTitle.textContent = "无中转路线";
+      policyText.textContent = "海南仅按极兔原始报价单计算，暂无后续账单样本验证。";
       return;
     }
 
@@ -214,8 +302,8 @@
     unavailableState.hidden = false;
     document.getElementById("unavailable-title").textContent = `${result.carrierName}发往${result.province}暂无报价`;
     document.getElementById("unavailable-text").textContent = result.carrier === "sf"
-      ? "顺丰报价表未列出西藏。请在发货前联系顺丰确认价格。"
-      : "极兔对青海、海南、新疆、西藏暂不提供自动报价。";
+      ? "顺丰报价表未列出该地区。请在发货前联系顺丰确认价格。"
+      : "该地区暂时没有可用报价，请联系网点确认。";
   }
 
   function renderJT(result) {
@@ -229,16 +317,37 @@
     document.getElementById("city-fee").textContent = formatMoney(result.cityFee);
     document.getElementById("remote-fee").textContent = formatMoney(result.remoteFee);
     document.getElementById("transport-fee").textContent = formatMoney(result.transportFee);
-    document.getElementById("amount-note").textContent = "这是极兔本票完整运费";
-    document.getElementById("settlement-title").textContent = "月结账单还需补交";
-    document.getElementById("settlement-hint").textContent = "已冲减每票3.50元面单金额";
-    document.getElementById("settlement-value").textContent = result.monthlyDue < 0
-      ? `抵扣 ${formatMoney(Math.abs(result.monthlyDue))}`
-      : formatMoney(result.monthlyDue);
+    if (result.transfer) {
+      document.getElementById("amount-note").textContent = `${result.transferRoute.via}中转，按${result.transferRoute.rateProvince}账单价；月结补交 ${formatMoney(result.monthlyDue)}`;
+      if (result.directQuote) {
+        document.getElementById("settlement-title").textContent = "极兔直发报价单";
+        document.getElementById("settlement-hint").textContent = "原始报价，暂无实际账单验证";
+        document.getElementById("settlement-value").textContent = formatMoney(result.directQuote.totalCost);
+      } else {
+        document.getElementById("settlement-title").textContent = "报价类型";
+        document.getElementById("settlement-hint").textContent = `仅支持${result.transferRoute.via}中转`;
+        document.getElementById("settlement-value").textContent = "中转价";
+      }
+    } else if (result.directOnly) {
+      document.getElementById("amount-note").textContent = "极兔原始报价单价格，未走中转";
+      document.getElementById("settlement-title").textContent = "报价类型";
+      document.getElementById("settlement-hint").textContent = "海南没有中转路线";
+      document.getElementById("settlement-value").textContent = "直发价";
+    } else {
+      document.getElementById("amount-note").textContent = "这是极兔本票完整运费";
+      document.getElementById("settlement-title").textContent = "月结账单还需补交";
+      document.getElementById("settlement-hint").textContent = "已冲减每票3.50元面单金额";
+      document.getElementById("settlement-value").textContent = result.monthlyDue < 0
+        ? `抵扣 ${formatMoney(Math.abs(result.monthlyDue))}`
+        : formatMoney(result.monthlyDue);
+    }
     const pieces = [`基础运费 ${formatMoney(result.baseFee)}`];
     if (result.cityFee) pieces.push(`北京／上海加收 ${formatMoney(result.cityFee)}`);
     if (result.remoteFee) pieces.push(`偏远加收 ${formatMoney(result.remoteFee)}`);
-    pieces.push(`运输加收 ${formatMoney(result.transportFee)}`);
+    if (result.transportFee) pieces.push(`运输加收 ${formatMoney(result.transportFee)}`);
+    if (result.transfer) pieces.unshift(`${result.transferRoute.via}中转`);
+    if (result.directOnly) pieces.unshift("极兔报价单直发价");
+    if (result.directQuote && result.transfer) pieces.push(`直发报价 ${formatMoney(result.directQuote.totalCost)}`);
     document.getElementById("calculation-note").querySelector("p").textContent = pieces.join(" ＋ ");
   }
 
